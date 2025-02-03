@@ -10,7 +10,6 @@ video_analyzer = VideoAnalysis(INPUT_VIDEO)
 
 video_analyzer.init_detections()
 video_analyzer.init_paths()
-video_analyzer.split_paths()
 
 video_analyzer.chop_up_video()
 

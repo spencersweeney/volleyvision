@@ -1,6 +1,9 @@
 venv3.12/
 presentation_assets/
 src/__pycache__
-src/assets/
-src/outputs/
+src/assets/videos/
+src/assets/inference_outputs/*
+!src/assets/inference_outputs/.gitkeep
+src/outputs/*
+!src/outputs/.gitkeep
 .DS_Store

@@ -32,6 +32,9 @@ class VideoAnalysis():
     """
 
     def __init__(self, video_path):
+        """
+        Get basic video intrinsics
+        """
         self.video_path = video_path
 
         cap = cv2.VideoCapture(video_path)
@@ -41,6 +44,9 @@ class VideoAnalysis():
         self.fps = int(cap.get(cv2.CAP_PROP_FPS))
 
     def init_detections(self, output_path="src/assets/inference_outputs/", api_key=API_KEY, project=PROJECT):
+        """
+        Run batch video inference or get saved detection for the video
+        """
         self.output_path = output_path
         self.api_key = api_key
         self.project = project
@@ -50,6 +56,9 @@ class VideoAnalysis():
         self.predictions = self._init_detections_map()
         
     def _init_detections_map(self):
+        """
+        Match output detections with their frames in the vidoes
+        """
         frames_with_predictions = self.inference_results['frame_offset']
         
         predictions_map = {}
@@ -59,6 +68,9 @@ class VideoAnalysis():
         return predictions_map
 
     def init_paths(self):
+        """
+        Run the path manager over all detections
+        """
         self.path_manager = PathManager()
         for frame_count, predictions in self.predictions.items():
             for prediction in predictions:
@@ -66,16 +78,15 @@ class VideoAnalysis():
                     prediction['y']), int(prediction['width']), int(prediction['height'])
                 confidence = prediction['confidence']
 
-                # if self._validate_detection(x, y, width, height, confidence):
-                self.path_manager.add_detection(x, y, int(frame_count))
+                if self._validate_detection(x, y, width, height, confidence):
+                    self.path_manager.add_detection(x, y, int(frame_count))
 
         self.paths = self.path_manager.get_paths()
         
-    def split_paths(self):
-        self.path_manager.split_paths()
-        self.paths = self.path_manager.get_paths()
-
     def get_detections_json(self):
+        """
+        Read in the saved inference results
+        """
         input_filename = os.path.splitext(os.path.basename(self.video_path))[0]
         results_file = os.path.join(
             self.output_path, f"{input_filename}_results.txt")
@@ -91,6 +102,9 @@ class VideoAnalysis():
         return json.loads(formated_results_file)
 
     def _generate_detections(self):
+        """
+        Run batched inference on a video
+        """
         rf = Roboflow(api_key=self.api_key)
         project = rf.workspace().project(self.project)
         model = project.version(2).model
@@ -113,8 +127,18 @@ class VideoAnalysis():
             f.write(str(results))
 
         return output_filename
+        
+    def split_paths(self):
+        """
+        Splits paths so that every path is one parabolic motion (WIP)
+        """
+        self.path_manager.split_paths()
+        self.paths = self.path_manager.get_paths()
 
     def plot_paths(self, output_file):
+        """
+        Plot all the paths with their points on a black frame (color for type of path)
+        """
         cap = cv2.VideoCapture(self.video_path)
 
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -139,6 +163,9 @@ class VideoAnalysis():
         cv2.imwrite(output_file, black_frame)
         
     def plot_paths_one_by_one(self):
+        """
+        Plot each path one by one (used for debugging mostly)
+        """
         cap = cv2.VideoCapture(self.video_path)
 
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -164,6 +191,9 @@ class VideoAnalysis():
             cv2.waitKey(0)
             
     def plot_paths_video(self, output_path="src/outputs/"):
+        """
+        This shows the detections as they come and colors the paths at the end
+        """
         input_filename = os.path.splitext(os.path.basename(self.video_path))[0]
         results_filename = os.path.join(
             output_path, f"{input_filename}_plotting_paths.mp4")
@@ -213,14 +243,14 @@ class VideoAnalysis():
                     black_frame, (detection['x'], detection['y']), 5, color, -1)
                 
             out.write(black_frame)
-            
-        
 
         cap.release()
         out.release()
-        
 
     def video_with_detections(self, output_path="src/outputs/", with_trail=False):
+        """
+        Output the original video just with the detections overlayed
+        """
         input_filename = os.path.splitext(os.path.basename(self.video_path))[0]
         results_filename = os.path.join(
             output_path, f"{input_filename}_with_detections.mp4")
@@ -247,19 +277,19 @@ class VideoAnalysis():
                     confidence = prediction['confidence']
                     class_name = prediction['class']
                     
-                    # if self._validate_detection(x, y, width, height, confidence):
-                    cv2.rectangle(frame, (x - width // 2, y - height // 2),
-                                (x + width // 2, y + height // 2), (0, 255, 0), 2)
+                    if self._validate_detection(x, y, width, height, confidence):
+                        cv2.rectangle(frame, (x - width // 2, y - height // 2),
+                                    (x + width // 2, y + height // 2), (0, 255, 0), 2)
 
-                    label = f"{class_name} {confidence:.2f}"
-                    cv2.putText(frame, label, (x - width // 2, y - height //
-                                2 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                    
-                    if with_trail:
-                        ball_trail.append((x, y))
+                        label = f"{class_name} {confidence:.2f}"
+                        cv2.putText(frame, label, (x - width // 2, y - height //
+                                    2 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                         
-                        for x, y in ball_trail:
-                            cv2.circle(frame, (x, y), radius=5, color=(0, 255, 0), thickness=-1)                    
+                        if with_trail:
+                            ball_trail.append((x, y))
+                            
+                            for x, y in ball_trail:
+                                cv2.circle(frame, (x, y), radius=5, color=(0, 255, 0), thickness=-1)                    
 
             out.write(frame)
 
@@ -271,6 +301,9 @@ class VideoAnalysis():
         return results_filename
 
     def chop_up_video(self, output_path="src/outputs/", with_detections=False, with_trail=False):
+        """
+        Cut up the video based on the ball in motion paths
+        """
         input_filename = os.path.splitext(os.path.basename(self.video_path))[0]
         results_filename = os.path.join(
             output_path, f"{input_filename}_cut_up.mp4")
@@ -322,6 +355,9 @@ class VideoAnalysis():
         return results_filename
     
     def watch_paths(self, output_path="src/outputs/", with_detections=False, with_trail=False):
+        """
+        Watch the frames of every single path (used mostly for debugging)
+        """
         input_filename = os.path.splitext(os.path.basename(self.video_path))[0]
         results_filename = os.path.join(
             output_path, f"{input_filename}_paths.mp4")
@@ -386,7 +422,7 @@ class VideoAnalysis():
     
     def draw_set_trajectories(self, output_path="src/outputs/"):
         """
-        WIP semi-hardcoded right now
+        WIP semi-hardcoded right now, draws the trajectories of the "sets" in the video
         """
         input_filename = os.path.splitext(os.path.basename(self.video_path))[0]
         results_filename = os.path.join(
