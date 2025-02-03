@@ -1,0 +1,6 @@
+venv3.12/
+presentation_assets/
+src/__pycache__
+src/assets/
+src/outputs/
+.DS_Store
